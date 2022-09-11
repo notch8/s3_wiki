@@ -41,50 +41,52 @@ build:
 #   tags:
 #     - docker
 
-staging:
-  stage: go
-  extends:
-    - .deploy
-  variables:
-    DEPLOY_IMAGE: $CI_REGISTRY_IMAGE
-    DEPLOY_TAG: $CI_COMMIT_SHORT_SHA
-    HELM_EXTRA_ARGS: >
-      --values dev/helm/staging-deploy.yaml
-  script:
-    - DOLLAR=$ envsubst < dev/helm/staging-deploy.tmpl.yaml > dev/helm/staging-deploy.yaml
-    - ./bin/helm_deploy test-staging-playbook test-staging-playbook
-  rules:
-    - if: $CI_COMMIT_BRANCH == "main"
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-      when: manual
-  allow_failure: true
-  tags:
-    - local
-
-# production:
+# staging: # This hasn't been fully setup yet
 #   stage: go
 #   extends:
 #     - .deploy
 #   variables:
 #     DEPLOY_IMAGE: $CI_REGISTRY_IMAGE
 #     DEPLOY_TAG: $CI_COMMIT_SHORT_SHA
-#     HELM_EXPERIMENTAL_OCI: 1
 #     HELM_EXTRA_ARGS: >
-#       --values ops/production-deploy.yaml
+#       --values dev/helm/staging-deploy.yaml
 #   script:
-#     # - export KUBECONFIG=$ # ToDo add the right cluster config issue
-#     - DOLLAR=$ envsubst < ops/production-deploy.tmpl.yaml > ops/production-deploy.yaml
-#     - ./bin/helm_deploy production-playbook production-playbook
-#   # after_script:
-#   #   - rm -f ./chart/*-deploy.yaml
+#     - DOLLAR=$ envsubst < dev/helm/staging-deploy.tmpl.yaml > dev/helm/staging-deploy.yaml
+#     - ./bin/helm_deploy test-staging-playbook test-staging-playbook
+#   after_script:
+#     - rm -f ./dev/helm/*-deploy.yaml
 #   rules:
 #     - if: $CI_COMMIT_BRANCH == "main"
-#       when: manual
 #     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 #       when: manual
 #   allow_failure: true
 #   tags:
 #     - local
+
+production:
+  stage: go
+  extends:
+    - .deploy
+  variables:
+    DEPLOY_IMAGE: $CI_REGISTRY_IMAGE
+    DEPLOY_TAG: $CI_COMMIT_SHORT_SHA
+    HELM_EXPERIMENTAL_OCI: 1
+    HELM_EXTRA_ARGS: >
+      --values dev/helm/production-deploy.yaml
+  script:
+    - export KUBECONFIG=$KUBECONFIG_PALS
+    - DOLLAR=$ envsubst < dev/helm/production-deploy.tmpl.yaml > dev/helm/production-deploy.yaml
+    - ./bin/helm_deploy production-playbook production-playbook
+  after_script:
+    - rm -f ./chart/*-deploy.yaml
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: manual
+  allow_failure: true
+  tags:
+    - local
 
 .deploy:
   image: dtzar/helm-kubectl:3.8.0
